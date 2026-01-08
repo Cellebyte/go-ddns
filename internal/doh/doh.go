@@ -16,11 +16,11 @@ import (
 )
 
 type Client struct {
-	DOHEndpoint *url.URL
-	httpClient  *http.Client
+	endpoint   *url.URL
+	httpClient *http.Client
 }
 
-func NewClient(provider, endpoint string) (Client, error) {
+func NewClient(provider, dohEndpoint string) (Client, error) {
 	var url *url.URL
 	var client = Client{}
 	dohProvider, err := ParseProvider(provider)
@@ -28,13 +28,13 @@ func NewClient(provider, endpoint string) (Client, error) {
 		return client, fmt.Errorf("finding provider %q: %w", provider, err)
 	}
 	if dohProvider != custom {
-		endpoint = dohProvider.Endpoint()
+		dohEndpoint = dohProvider.Endpoint()
 	}
-	url, err = url.Parse(endpoint)
+	endpoint, err := url.Parse(dohEndpoint)
 	if err != nil {
-		return client, fmt.Errorf("parse doh endpoint url %q: %w", endpoint, err)
+		return client, fmt.Errorf("parse doh endpoint url %q: %w", dohEndpoint, err)
 	}
-	client.DOHEndpoint = url
+	client.endpoint = endpoint
 	client.httpClient = &http.Client{
 		Timeout: 5 * time.Second,
 		Transport: &http.Transport{
@@ -118,10 +118,10 @@ func (d Client) parse(dnsRawMessage []byte, queryType dnsmessage.Type) ([]string
 func (d Client) get(dnsMessage string) ([]byte, error) {
 	// Using RFC 8484
 	// ref: https://datatracker.ietf.org/doc/html/rfc8484
-	q := d.DOHEndpoint.Query()
+	q := d.endpoint.Query()
 	q.Set("dns", dnsMessage)
-	d.DOHEndpoint.RawQuery = q.Encode()
-	req, err := http.NewRequest("GET", d.DOHEndpoint.String(), nil)
+	d.endpoint.RawQuery = q.Encode()
+	req, err := http.NewRequest("GET", d.endpoint.String(), nil)
 	// Using RFC 8484
 	// ref: https://datatracker.ietf.org/doc/html/rfc8484
 	req.Header.Set("Content-Type", "application/dns-message")

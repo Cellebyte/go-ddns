@@ -33,7 +33,7 @@ func TestParseProvider_Invalid(t *testing.T) {
 	if err == nil {
 		t.Fatalf("expected error for invalid provider %q, got nil", input)
 	}
-	if got != Provider("") {
+	if got.String() != "" {
 		t.Fatalf("expected zero-value provider on error, got %q", got)
 	}
 	if !strings.Contains(err.Error(), "cannot parse") || !strings.Contains(err.Error(), input) {

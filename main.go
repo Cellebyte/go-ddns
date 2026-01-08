@@ -19,6 +19,7 @@ package main
 import (
 	"fmt"
 
+	"github.com/cellebyte/go-ddns/internal/discovery"
 	"github.com/cellebyte/go-ddns/internal/doh"
 	"github.com/cellebyte/go-ddns/internal/dyndns"
 
@@ -37,24 +38,51 @@ type DynDNS struct {
 	// TODO: make RecordType customizable if non-A is ever desired
 	RecordTTLSeconds int `json:"record_ttl_seconds"`
 
-	DohURL string `json:"doh_endpoint,omitempty"`
+	DOHProvider doh.Provider `json:"doh_provider"`
+	DOHEndpoint string       `json:"doh_endpoint"`
 }
 
-func main() {
+func getDiscoveredIPs() {
+	wtfIPClient, err := discovery.NewAddressTxtClient("https://myip.wtf/text")
+	if err != nil {
+		panic(err)
+	}
+	fiIPClient, err := discovery.NewAddressTxtClient("https://my.ip.fi")
+	if err != nil {
+		panic(err)
+	}
+	publicV4, _ := wtfIPClient.GetIPv4()
+	publicV6, _ := wtfIPClient.GetIPv6()
+
+	fiPublicV4, _ := fiIPClient.GetIPv4()
+	fiPublicV6, _ := fiIPClient.GetIPv6()
+
+	fmt.Println("myip.wtf says:", publicV4, publicV6, "my.ip.fi says:", fiPublicV4, fiPublicV6)
+}
+
+func getDNSValues(fqdn string) {
 	d, err := doh.NewClient("google", "")
 	if err != nil {
 		panic(err)
 	}
-	urlString := "www.selfnet.de"
-	aVal, err := d.Query(urlString, dnsmessage.TypeA)
-	aaaaVal, err := d.Query(urlString, dnsmessage.TypeAAAA)
-	txtVal, err := d.Query(urlString, dnsmessage.TypeTXT)
-	cnameVal, err := d.Query(urlString, dnsmessage.TypeCNAME)
+	aVal, err := d.Query(fqdn, dnsmessage.TypeA)
+	aaaaVal, err := d.Query(fqdn, dnsmessage.TypeAAAA)
+	txtVal, err := d.Query(fqdn, dnsmessage.TypeTXT)
+	cnameVal, err := d.Query(fqdn, dnsmessage.TypeCNAME)
 
-	fmt.Println(urlString, aVal)
-	fmt.Println(urlString, aaaaVal)
-	fmt.Println(urlString, txtVal)
-	fmt.Println(urlString, cnameVal)
+	fmt.Println(fqdn, aVal)
+	fmt.Println(fqdn, aaaaVal)
+	fmt.Println(fqdn, txtVal)
+	fmt.Println(fqdn, cnameVal)
+}
+
+func main() {
+	getDiscoveredIPs()
+	getDNSValues("www.selfnet.de")
+	getDNSValues("my.ip.fi")
+	getDNSValues("myip.wtf")
+	getDNSValues("example.com")
+
 	return
 
 }

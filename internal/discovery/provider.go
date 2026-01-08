@@ -1,24 +1,22 @@
-package dyndns
+package discovery
 
-import (
-	"fmt"
-)
+import "fmt"
 
 type Provider int
 
 const (
 	unknown Provider = iota
-	CloudFlare
-	PrepaidHoster
+	InterfaceName
+	AddressTxt
 	FritzBox
 )
 
 func (p Provider) String() string {
 	switch p {
-	case CloudFlare:
-		return "cloudflare"
-	case PrepaidHoster:
-		return "prepaidhoster"
+	case InterfaceName:
+		return "interfaceName"
+	case AddressTxt:
+		return "addressTxt"
 	case FritzBox:
 		return "fritz.box"
 	}
@@ -27,10 +25,10 @@ func (p Provider) String() string {
 
 func ParseProvider(provider string) (Provider, error) {
 	switch provider {
-	case CloudFlare.String():
-		return CloudFlare, nil
-	case PrepaidHoster.String():
-		return PrepaidHoster, nil
+	case InterfaceName.String():
+		return InterfaceName, nil
+	case AddressTxt.String():
+		return AddressTxt, nil
 	case FritzBox.String():
 		return FritzBox, nil
 	}
