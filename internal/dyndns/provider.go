@@ -2,6 +2,9 @@ package dyndns
 
 import (
 	"fmt"
+
+	"github.com/libdns/cloudflare"
+	pph "github.com/libdns/pph"
 )
 
 type Provider int
@@ -10,7 +13,6 @@ const (
 	unknown Provider = iota
 	CloudFlare
 	PrepaidHoster
-	FritzBox
 )
 
 func (p Provider) String() string {
@@ -19,8 +21,6 @@ func (p Provider) String() string {
 		return "cloudflare"
 	case PrepaidHoster:
 		return "prepaidhoster"
-	case FritzBox:
-		return "fritz.box"
 	}
 	return ""
 }
@@ -31,8 +31,19 @@ func ParseProvider(provider string) (Provider, error) {
 		return CloudFlare, nil
 	case PrepaidHoster.String():
 		return PrepaidHoster, nil
-	case FritzBox.String():
-		return FritzBox, nil
 	}
 	return unknown, fmt.Errorf("cannot parse %q", provider)
+}
+
+func (p Provider) DNSProvider(token string) (RecordGetterSetter, error) {
+	switch p {
+	case PrepaidHoster:
+		return pph.New(token), nil
+	case CloudFlare:
+		return &cloudflare.Provider{
+			APIToken: token,
+		}, nil
+	default:
+		return nil, fmt.Errorf("DNSProvider unsupported %q", p.String())
+	}
 }

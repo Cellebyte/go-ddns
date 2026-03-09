@@ -1,6 +1,9 @@
 package discovery
 
-import "fmt"
+import (
+	"fmt"
+	"net/netip"
+)
 
 type Provider int
 
@@ -33,4 +36,10 @@ func ParseProvider(provider string) (Provider, error) {
 		return FritzBox, nil
 	}
 	return unknown, fmt.Errorf("cannot parse %q", provider)
+}
+
+type DisoveryProvider interface {
+	Type() Provider
+	IPv4() (netip.Addr, error)
+	IPv6() (netip.Addr, error)
 }

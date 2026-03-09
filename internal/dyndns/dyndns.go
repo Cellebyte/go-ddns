@@ -24,7 +24,6 @@ import (
 
 type RecordGetterSetter interface {
 	libdns.RecordGetter
-	libdns.RecordDeleter
 	libdns.RecordSetter
 }
 

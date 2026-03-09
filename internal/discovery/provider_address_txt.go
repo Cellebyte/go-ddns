@@ -14,6 +14,7 @@ import (
 )
 
 type AddressTxtClient struct {
+	provider     Provider
 	endpoint     *url.URL
 	v4HttpClient *http.Client
 	v6HttpClient *http.Client
@@ -27,6 +28,7 @@ func NewAddressTxtClient(endpoint string) (c AddressTxtClient, err error) {
 	if err != nil {
 		return c, fmt.Errorf("parse doh endpoint url %q: %w", endpoint, err)
 	}
+	c.provider = AddressTxt
 	c.endpoint = parsedEndpoint
 	c.v4HttpClient = &http.Client{
 		Timeout: 5 * time.Second,
@@ -70,7 +72,11 @@ func (c AddressTxtClient) parseIP(rawIP string) (netip.Addr, error) {
 	return ip, nil
 }
 
-func (c AddressTxtClient) GetIPv4() (ip netip.Addr, err error) {
+func (c AddressTxtClient) Provider() Provider {
+	return c.provider
+}
+
+func (c AddressTxtClient) IPv4() (ip netip.Addr, err error) {
 	r, err := c.v4HttpClient.Get(c.endpoint.String())
 	if err != nil {
 		return ip, fmt.Errorf("getting endpoint %s: %w", c.endpoint.String(), err)
@@ -87,7 +93,7 @@ func (c AddressTxtClient) GetIPv4() (ip netip.Addr, err error) {
 	return ip, nil
 }
 
-func (c AddressTxtClient) GetIPv6() (ip netip.Addr, err error) {
+func (c AddressTxtClient) IPv6() (ip netip.Addr, err error) {
 	r, err := c.v6HttpClient.Get(c.endpoint.String())
 	if err != nil {
 		return ip, fmt.Errorf("getting endpoint %s: %w", c.endpoint.String(), err)

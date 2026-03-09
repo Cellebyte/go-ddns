@@ -17,11 +17,15 @@
 package main
 
 import (
+	"context"
 	"fmt"
+	"net/netip"
+	"time"
 
 	"github.com/cellebyte/go-ddns/internal/discovery"
 	"github.com/cellebyte/go-ddns/internal/doh"
 	"github.com/cellebyte/go-ddns/internal/dyndns"
+	"github.com/libdns/libdns"
 
 	"golang.org/x/net/dns/dnsmessage"
 )
@@ -51,13 +55,14 @@ func getDiscoveredIPs() {
 	if err != nil {
 		panic(err)
 	}
-	publicV4, _ := wtfIPClient.GetIPv4()
-	publicV6, _ := wtfIPClient.GetIPv6()
+	publicV4, _ := wtfIPClient.IPv4()
+	publicV6, _ := wtfIPClient.IPv6()
 
-	fiPublicV4, _ := fiIPClient.GetIPv4()
-	fiPublicV6, _ := fiIPClient.GetIPv6()
+	fiPublicV4, _ := fiIPClient.IPv4()
+	fiPublicV6, _ := fiIPClient.IPv6()
 
-	fmt.Println("myip.wtf says:", publicV4, publicV6, "my.ip.fi says:", fiPublicV4, fiPublicV6)
+	fmt.Println("myip.wtf says:", publicV4, publicV6)
+	fmt.Println("my.ip.fi says:", fiPublicV4, fiPublicV6)
 }
 
 func getDNSValues(fqdn string) {
@@ -76,6 +81,22 @@ func getDNSValues(fqdn string) {
 	fmt.Println(fqdn, cnameVal)
 }
 
+func setDNSValue(fqdn, ip string) {
+	zone := "cellebyte.de"
+	dnsProviderClient, err := dyndns.PrepaidHoster.DNSProvider("")
+	if err != nil {
+		panic(fmt.Errorf("getting dns provider %w", err))
+	}
+	parsedIP, _ := netip.ParseAddr(ip)
+	record := libdns.Address{
+		Name: libdns.RelativeName(fqdn, zone),
+		TTL:  time.Duration(600 * time.Second),
+		IP:   parsedIP,
+	}
+	dyndns.Update(context.TODO(), zone, record, dnsProviderClient)
+
+}
+
 func main() {
 	getDiscoveredIPs()
 	getDNSValues("www.selfnet.de")
@@ -83,6 +104,5 @@ func main() {
 	getDNSValues("myip.wtf")
 	getDNSValues("example.com")
 
-	return
-
+	setDNSValue("my.cellebyte.de", "10.0.0.0")
 }
