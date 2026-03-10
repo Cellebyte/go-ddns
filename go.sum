@@ -1,10 +1,10 @@
 github.com/cellebyte/go-pph v0.0.2 h1:e00cmGn29GmJ0Lk0o+64SVEGSkJVpL+Akw2yVoIaHWA=
 github.com/cellebyte/go-pph v0.0.2/go.mod h1:fRfh4EH92x2WMvibmMYs4yy4Bub1uXGx55bUeOyz4fc=
-github.com/cellebyte/pph v0.0.1 h1:fsfCYX3/shLDZWzQfXb4+RZvQH+lx2AyELgN68SZxDA=
-github.com/cellebyte/pph v0.0.1/go.mod h1:Z6F9XxtDV6Z5/kHEsGW2Dkvkd884fC/2AkXqMjIPjqY=
 github.com/libdns/cloudflare v0.2.2 h1:XWHv+C1dDcApqazlh08Q6pjytYLgR2a+Y3xrXFu0vsI=
 github.com/libdns/cloudflare v0.2.2/go.mod h1:w9uTmRCDlAoafAsTPnn2nJ0XHK/eaUMh86DUk8BWi60=
 github.com/libdns/libdns v1.1.1 h1:wPrHrXILoSHKWJKGd0EiAVmiJbFShguILTg9leS/P/U=
 github.com/libdns/libdns v1.1.1/go.mod h1:4Bj9+5CQiNMVGf87wjX4CY3HQJypUHRuLvlsfsZqLWQ=
+github.com/libdns/pph v0.0.2 h1:LIsMvtJVUFlNys5WFJ3Q9K1E6HXKklidEk5JY6F+60s=
+github.com/libdns/pph v0.0.2/go.mod h1:Z6F9XxtDV6Z5/kHEsGW2Dkvkd884fC/2AkXqMjIPjqY=
 golang.org/x/net v0.48.0 h1:zyQRTTrjc33Lhh0fBgT/H3oZq9WuvRR5gPC70xpDiQU=
 golang.org/x/net v0.48.0/go.mod h1:+ndRgGjkh8FGtu1w1FGbEC31if4VrNVMuKTgcAAnQRY=

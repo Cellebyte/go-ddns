@@ -38,7 +38,9 @@ func ParseProvider(provider string) (Provider, error) {
 func (p Provider) DNSProvider(token string) (RecordGetterSetter, error) {
 	switch p {
 	case PrepaidHoster:
-		return pph.New(token), nil
+		return &pph.Provider{
+			APIToken: token,
+		}, nil
 	case CloudFlare:
 		return &cloudflare.Provider{
 			APIToken: token,
