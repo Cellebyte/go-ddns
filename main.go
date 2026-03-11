@@ -22,29 +22,16 @@ import (
 	"net/netip"
 	"time"
 
+	"github.com/cellebyte/go-ddns/internal/config"
+	dynDnsConfig "github.com/cellebyte/go-ddns/internal/config"
 	"github.com/cellebyte/go-ddns/internal/discovery"
 	"github.com/cellebyte/go-ddns/internal/doh"
 	"github.com/cellebyte/go-ddns/internal/dyndns"
+	"github.com/cellebyte/go-ddns/internal/helpers"
 	"github.com/libdns/libdns"
 
 	"golang.org/x/net/dns/dnsmessage"
 )
-
-var update = dyndns.Update
-
-type DynDNS struct {
-	// TODO: multiple providers support
-	DynDNSAPIToken string          `json:"dyndns_api_token"`
-	DynDNSProvider dyndns.Provider `json:"dyndns_provider"`
-	Zone           string          `json:"zone"`
-	RecordName     string          `json:"record_name"`
-	RecordType     string          `json:"record_type"`
-	// TODO: make RecordType customizable if non-A is ever desired
-	RecordTTLSeconds int `json:"record_ttl_seconds"`
-
-	DOHProvider doh.Provider `json:"doh_provider"`
-	DOHEndpoint string       `json:"doh_endpoint"`
-}
 
 func getDiscoveredIPs() {
 	wtfIPClient, err := discovery.NewAddressTxtClient("https://myip.wtf/text")
@@ -65,44 +52,102 @@ func getDiscoveredIPs() {
 	fmt.Println("my.ip.fi says:", fiPublicV4, fiPublicV6)
 }
 
-func getDNSValues(fqdn string) {
-	d, err := doh.NewClient("google", "")
-	if err != nil {
-		panic(err)
+func discoverIP(d discovery.DisoveryProvider, recordType string) (netip.Addr, error) {
+	switch recordType {
+	case config.AType:
+		return d.IPv4()
+	case config.AAAAType:
+		return d.IPv6()
 	}
-	aVal, err := d.Query(fqdn, dnsmessage.TypeA)
-	aaaaVal, err := d.Query(fqdn, dnsmessage.TypeAAAA)
-	txtVal, err := d.Query(fqdn, dnsmessage.TypeTXT)
-	cnameVal, err := d.Query(fqdn, dnsmessage.TypeCNAME)
-
-	fmt.Println(fqdn, aVal)
-	fmt.Println(fqdn, aaaaVal)
-	fmt.Println(fqdn, txtVal)
-	fmt.Println(fqdn, cnameVal)
+	return netip.Addr{}, helpers.NotImplemeted
 }
 
-func setDNSValue(fqdn, ip string) {
-	zone := "cellebyte.de"
-	dnsProviderClient, err := dyndns.PrepaidHoster.DNSProvider("")
+func getDNSValue(d doh.Client, dnsName, recordType string) (netip.Addr, error) {
+	var messageType dnsmessage.Type
+	switch recordType {
+	case config.AType:
+		messageType = dnsmessage.TypeA
+	case config.AAAAType:
+		messageType = dnsmessage.TypeAAAA
+	default:
+		return netip.Addr{}, helpers.NotImplemeted
+	}
+	val, err := d.Query(dnsName, messageType)
 	if err != nil {
-		panic(fmt.Errorf("getting dns provider %w", err))
+		return netip.Addr{}, fmt.Errorf("querying for %q: %w", dnsName, err)
 	}
-	parsedIP, _ := netip.ParseAddr(ip)
-	record := libdns.Address{
-		Name: libdns.RelativeName(fqdn, zone),
-		TTL:  time.Duration(600 * time.Second),
-		IP:   parsedIP,
+	var addr netip.Addr
+	if len(val) > 0 {
+		addr, err = netip.ParseAddr(val[0])
+		if err != nil {
+			return addr, fmt.Errorf("parsing %s: %w", val[0], err)
+		}
 	}
-	dyndns.Update(context.TODO(), zone, record, dnsProviderClient)
+	return addr, nil
+}
 
+func Update(config dynDnsConfig.DynDNS) error {
+	dnsName := libdns.AbsoluteName(config.RecordName, config.Zone)
+	dohClient, err := doh.NewClient(config.DOHProvider.String(), config.DOHProvider.Endpoint())
+	if err != nil {
+		return fmt.Errorf("creating doh client for %v+: %w", config.DOHProvider, err)
+	}
+	discoveryClient, err := config.DiscoveryProvider.New(config.DiscoveryProviderEndpoint)
+	if err != nil {
+		return fmt.Errorf("creating discovery client for %v+: %w", config.DiscoveryProvider, err)
+	}
+	dnsProviderClient, err := config.Provider.New(config.APIToken)
+	if err != nil {
+		return fmt.Errorf("creating dns provider client for %v+: %w", config.Provider, err)
+	}
+
+	for _, recordType := range config.RecordTypes {
+		oldAddr, err := getDNSValue(dohClient, dnsName, recordType)
+		if err != nil {
+			return fmt.Errorf("getting dns content for [%s] %s: %w", recordType, dnsName, err)
+		}
+		newAddr, err := discoverIP(discoveryClient, recordType)
+		if err != nil {
+			return fmt.Errorf("getting ip for [%s] %s: %w", recordType, dnsName, err)
+		}
+		if newAddr == oldAddr {
+			fmt.Printf("%s: %s already has address (old %q == new %q)\n", recordType, dnsName, oldAddr.String(), newAddr.String())
+			continue
+		}
+		record := libdns.Address{
+			Name: libdns.RelativeName(dnsName, config.Zone),
+			TTL:  time.Duration(600 * time.Second),
+			IP:   newAddr,
+		}
+		err = dyndns.Update(context.TODO(), config.Zone, record, dnsProviderClient)
+		if err != nil {
+			return fmt.Errorf("updating ip for [%s] %s to %q: %w", recordType, dnsName, newAddr.String(), err)
+		}
+		fmt.Printf("%s: %s now has address %q\n", recordType, dnsName, newAddr.String())
+	}
+	return nil
 }
 
 func main() {
-	getDiscoveredIPs()
-	getDNSValues("www.selfnet.de")
-	getDNSValues("my.ip.fi")
-	getDNSValues("myip.wtf")
-	getDNSValues("example.com")
+	config, err := dynDnsConfig.ParseConfig()
+	if err != nil {
+		panic(fmt.Errorf("parsing config: %w", err))
+	}
 
-	setDNSValue("my.cellebyte.de", "10.0.0.0")
+	ticker := time.NewTicker(config.RecordTTL / 3)
+	defer ticker.Stop()
+	fmt.Println("Will update", libdns.AbsoluteName(config.RecordName, config.Zone), "every", config.RecordTTL/3)
+	err = Update(config)
+	if err != nil {
+		panic(fmt.Errorf("running update: %w", err))
+	}
+	for {
+		t := <-ticker.C
+		// This code runs every third part of config.RecordTTL
+		fmt.Println(t.Format("15:04:05"), ":: Update record", libdns.AbsoluteName(config.RecordName, config.Zone))
+		err = Update(config)
+		if err != nil {
+			panic(fmt.Errorf("%s :: running update: %w", t.Format("15:04:05"), err))
+		}
+	}
 }

@@ -129,7 +129,7 @@ func (d Client) get(dnsMessage string) ([]byte, error) {
 
 	resp, err := d.httpClient.Do(req)
 	if err != nil {
-		return []byte{}, fmt.Errorf("doing request %q: %w", resp.Request.URL.String(), err)
+		return []byte{}, fmt.Errorf("doing request %q: %w", req.URL.String(), err)
 	}
 	defer resp.Body.Close()
 	buf, err := io.ReadAll(resp.Body)

@@ -13,7 +13,7 @@ const (
 	Google
 	Quad9
 	WikiMedia
-	Joindns4EU
+	JoinDns4EU
 )
 
 var (
@@ -22,7 +22,7 @@ var (
 		Google:     "https://dns.google/dns-query",
 		Quad9:      "https://dns.quad9.net/dns-query",
 		WikiMedia:  "https://wikimedia-dns.org/dns-query",
-		Joindns4EU: "https://unfiltered.joindns4.eu/dns-query",
+		JoinDns4EU: "https://unfiltered.joindns4.eu/dns-query",
 	}
 )
 
@@ -38,7 +38,7 @@ func (p Provider) String() string {
 		return "quad9"
 	case WikiMedia:
 		return "wikimedia"
-	case Joindns4EU:
+	case JoinDns4EU:
 		return "joindns4eu"
 	}
 	return fmt.Sprintf("Provider(%q)", int(p))
@@ -56,8 +56,8 @@ func ParseProvider(in string) (Provider, error) {
 		return Quad9, nil
 	case WikiMedia.String():
 		return WikiMedia, nil
-	case Joindns4EU.String():
-		return Joindns4EU, nil
+	case JoinDns4EU.String():
+		return JoinDns4EU, nil
 	}
 	return custom, fmt.Errorf("%q is not a valid provider: %w", in, errors.New("invalid provider"))
 }

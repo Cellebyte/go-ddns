@@ -3,6 +3,8 @@ package discovery
 import (
 	"fmt"
 	"net/netip"
+
+	"github.com/cellebyte/go-ddns/internal/helpers"
 )
 
 type Provider int
@@ -26,6 +28,21 @@ func (p Provider) String() string {
 	return ""
 }
 
+func (p Provider) New(val string) (DisoveryProvider, error) {
+	switch p {
+	case InterfaceName:
+		client, err := NewInterfaceNameTracker(val)
+		return &client, err
+	case AddressTxt:
+		client, err := NewAddressTxtClient(val)
+		return &client, err
+	case FritzBox:
+		client, err := NewFritzBoxClient(val)
+		return &client, err
+	}
+	return nil, helpers.NotImplemeted
+}
+
 func ParseProvider(provider string) (Provider, error) {
 	switch provider {
 	case InterfaceName.String():
@@ -39,7 +56,7 @@ func ParseProvider(provider string) (Provider, error) {
 }
 
 type DisoveryProvider interface {
-	Type() Provider
+	Provider() Provider
 	IPv4() (netip.Addr, error)
 	IPv6() (netip.Addr, error)
 }

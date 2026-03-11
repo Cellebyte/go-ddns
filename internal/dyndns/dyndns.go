@@ -17,7 +17,6 @@ package dyndns
 import (
 	"context"
 	"fmt"
-	"log"
 
 	"github.com/libdns/libdns"
 )
@@ -46,10 +45,6 @@ func Update(ctx context.Context, zone string, record libdns.Record, provider Rec
 		}
 
 		if rec.RR().Data == record.RR().Data {
-			log.Printf("record up to date: %s %s %s",
-				record.RR().Name,
-				record.RR().Type,
-				record.RR().Data)
 			return nil
 		}
 		toUpdate = append(toUpdate, record)
@@ -62,9 +57,5 @@ func Update(ctx context.Context, zone string, record libdns.Record, provider Rec
 	if _, err := provider.SetRecords(ctx, zone, toUpdate); err != nil {
 		return fmt.Errorf("setting new records: %w", err)
 	}
-	log.Printf("updated record: %s %s %s",
-		record.RR().Name,
-		record.RR().Type,
-		record.RR().Data)
 	return nil
 }

@@ -3,6 +3,7 @@ package dyndns
 import (
 	"fmt"
 
+	"github.com/cellebyte/go-ddns/internal/helpers"
 	"github.com/libdns/cloudflare"
 	pph "github.com/libdns/pph"
 )
@@ -35,7 +36,7 @@ func ParseProvider(provider string) (Provider, error) {
 	return unknown, fmt.Errorf("cannot parse %q", provider)
 }
 
-func (p Provider) DNSProvider(token string) (RecordGetterSetter, error) {
+func (p Provider) New(token string) (RecordGetterSetter, error) {
 	switch p {
 	case PrepaidHoster:
 		return &pph.Provider{
@@ -46,6 +47,6 @@ func (p Provider) DNSProvider(token string) (RecordGetterSetter, error) {
 			APIToken: token,
 		}, nil
 	default:
-		return nil, fmt.Errorf("DNSProvider unsupported %q", p.String())
+		return nil, helpers.NotImplemeted
 	}
 }
