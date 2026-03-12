@@ -11,7 +11,7 @@ RUN cd /usr/src/go-ddns && \
 
 FROM scratch
 LABEL org.opencontainers.image.source=https://github.com/cellebyte/go-ddns
-COPY --from=build /usr/src/go-ddns/go-ddns /usr/bin
+COPY --from=build /usr/src/go-ddns/go-ddns /usr/bin/go-ddns
 COPY --from=build /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/
 COPY --from=build /usr/share/zoneinfo /usr/share/zoneinfo
 ENV TZ=UTC
