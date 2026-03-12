@@ -3,9 +3,11 @@ on: [pull_request]
 jobs:
   build-images:
     runs-on: ubuntu-latest
-    env:
-      REPOSITORY: ghcr.io/${{ github.repository }}
     steps:
+      - name: downcase REPOSITORY
+        run: |
+          echo "REPOSITORY=${GITHUB_REPOSITORY@L}" >> "${GITHUB_ENV}"
+
       - name: Check out code into the Go module directory
         uses: actions/checkout@v4
 
@@ -16,4 +18,4 @@ jobs:
         uses: docker/build-push-action@v5
         with:
           push: false
-          tags: ghcr.io/${{ github.repository }}:latest-amd64
+          tags: ghcr.io/${{ env.REPOSITORY }}:latest-amd64

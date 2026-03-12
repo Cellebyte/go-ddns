@@ -21,8 +21,11 @@ jobs:
             arch: "arm64"
     env:
       GO111MODULE: on
-      REPOSITORY: ghcr.io/${{ github.repository }}
     steps:
+      - name: downcase REPOSITORY
+        run: |
+          echo "REPOSITORY=${GITHUB_REPOSITORY@L}" >> "${GITHUB_ENV}"
+
       - name: Check out code into the Go module directory
         uses: actions/checkout@v4
 
@@ -40,7 +43,7 @@ jobs:
         id: meta
         uses: docker/metadata-action@v5
         with:
-          images: ${{ github.repository }}
+          images: ${{ env.REPOSITORY }}
           flavor:
             latest=false
 
@@ -50,7 +53,7 @@ jobs:
         with:
           context: .
           outputs: type=image,push-by-digest=true,name-canonical=true,push=true
-          tags: ghcr.io/${{ github.repository }}
+          tags: ghcr.io/${{ env.REPOSITORY }}
           labels: ${{ steps.meta.outputs.labels }}
           file: Dockerfile
 
@@ -75,6 +78,10 @@ jobs:
     needs:
       - build-images
     steps:
+      - name: downcase REPOSITORY
+        run: |
+          echo "REPOSITORY=${GITHUB_REPOSITORY@L}" >> "${GITHUB_ENV}"
+
       - name: Download digests
         uses: actions/download-artifact@v4
         with:
@@ -93,10 +100,10 @@ jobs:
         id: meta
         uses: docker/metadata-action@v5.5.1
         with:
-          images: ghcr.io/${{ github.repository }}
+          images: ghcr.io/${{ env.REPOSITORY }}
 
       - name: Create manifest list and push
         working-directory: ${{ runner.temp }}/digests
         run: |
           docker buildx imagetools create $(jq -cr '.tags | map("-t " + .) | join(" ")' <<< "$DOCKER_METADATA_OUTPUT_JSON") \
-            $(printf 'ghcr.io/${{ github.repository }}@sha256:%s ' *)
+            $(printf 'ghcr.io/${{ env.REPOSITORY }}@sha256:%s ' *)

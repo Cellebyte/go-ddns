@@ -112,10 +112,10 @@ func main() {
 	if err != nil {
 		panic(fmt.Errorf("parsing config: %w", err))
 	}
-
+	fmt.Println(time.Now().Format("15:04:05"), ":: Found config:", config)
 	ticker := time.NewTicker(config.RecordTTL / 3)
 	defer ticker.Stop()
-	fmt.Println("Will update", libdns.AbsoluteName(config.RecordName, config.Zone), "every", config.RecordTTL/3)
+	fmt.Println(time.Now().Format("15:04:05"), ":: Update record", libdns.AbsoluteName(config.RecordName, config.Zone), "every", config.RecordTTL/3)
 	err = Update(config)
 	if err != nil {
 		panic(fmt.Errorf("running update: %w", err))
