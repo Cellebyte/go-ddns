@@ -29,7 +29,7 @@ const (
 	subDomainRecordTypesEnv = "DYNDNS_DNS_SUBDOMAIN_RECORDTYPES"
 
 	// Defaults
-	defaultDohProvider               = "joindns4eu"
+	defaultDohProvider               = "ffmuc.net"
 	defaultDiscoveryProvider         = "addressTxt"
 	defaultDiscoveryProviderEndpoint = "https://myip.wtf/text"
 	defaulRecordTTL                  = 300 * time.Second

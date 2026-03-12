@@ -100,7 +100,6 @@ func Update(config dynDnsConfig.DynDNS) error {
 	if err != nil {
 		return fmt.Errorf("creating dns provider client for %v+: %w", config.Provider, err)
 	}
-
 	for _, recordType := range config.RecordTypes {
 		oldAddr, err := getDNSValue(dohClient, dnsName, recordType)
 		if err != nil {

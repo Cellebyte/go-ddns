@@ -152,8 +152,14 @@ func (d Client) Query(name string, queryType dnsmessage.Type) ([]string, error) 
 	var dnsBuf [1024]byte
 	b := dnsmessage.NewBuilder(dnsBuf[:0], dnsmessage.Header{RecursionDesired: true})
 	b.EnableCompression()
-	b.StartQuestions()
-	b.Question(dnsmessage.Question{Name: validName, Type: queryType, Class: dnsmessage.ClassINET})
+	err = b.StartQuestions()
+	if err != nil {
+		return nil, fmt.Errorf("starting question section: %w", err)
+	}
+	err = b.Question(dnsmessage.Question{Name: validName, Type: queryType, Class: dnsmessage.ClassINET})
+	if err != nil {
+		return nil, fmt.Errorf("adding question to section %w", err)
+	}
 	binaryMessage, err := b.Finish()
 	if err != nil {
 		return nil, fmt.Errorf("constructing binary blob %v %s: %w", queryType, name, err)
