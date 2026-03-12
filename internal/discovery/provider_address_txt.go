@@ -81,7 +81,12 @@ func (c AddressTxtClient) IPv4() (ip netip.Addr, err error) {
 	if err != nil {
 		return ip, fmt.Errorf("getting endpoint %s: %w", c.endpoint.String(), err)
 	}
-	defer r.Body.Close()
+	defer func() {
+		err := r.Body.Close()
+		if err != nil {
+			panic(fmt.Errorf("closing body: %w", err))
+		}
+	}()
 	byteString, err := io.ReadAll(r.Body)
 	if err != nil {
 		return ip, fmt.Errorf("reading content length %d: %w", r.ContentLength, err)
@@ -98,7 +103,12 @@ func (c AddressTxtClient) IPv6() (ip netip.Addr, err error) {
 	if err != nil {
 		return ip, fmt.Errorf("getting endpoint %s: %w", c.endpoint.String(), err)
 	}
-	defer r.Body.Close()
+	defer func() {
+		err := r.Body.Close()
+		if err != nil {
+			panic(fmt.Errorf("closing body: %w", err))
+		}
+	}()
 	byteString, err := io.ReadAll(r.Body)
 	if err != nil {
 		return ip, fmt.Errorf("reading content length %d: %w", r.ContentLength, err)

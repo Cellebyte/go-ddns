@@ -14,7 +14,7 @@ type InterfaceNameTracker struct {
 func NewInterfaceNameTracker(interfaceName string) (c InterfaceNameTracker, err error) {
 	c.provider = InterfaceName
 	c.interfaceName = interfaceName
-	return c, helpers.NotImplemeted
+	return c, helpers.ErrNotImplemeted
 }
 
 func (c InterfaceNameTracker) Provider() Provider {
@@ -22,10 +22,10 @@ func (c InterfaceNameTracker) Provider() Provider {
 }
 
 func (c InterfaceNameTracker) IPv4() (a netip.Addr, err error) {
-	return a, helpers.NotImplemeted
+	return a, helpers.ErrNotImplemeted
 
 }
 
 func (c InterfaceNameTracker) IPv6() (a netip.Addr, err error) {
-	return a, helpers.NotImplemeted
+	return a, helpers.ErrNotImplemeted
 }

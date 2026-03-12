@@ -23,7 +23,6 @@ import (
 	"time"
 
 	"github.com/cellebyte/go-ddns/internal/config"
-	dynDnsConfig "github.com/cellebyte/go-ddns/internal/config"
 	"github.com/cellebyte/go-ddns/internal/discovery"
 	"github.com/cellebyte/go-ddns/internal/doh"
 	"github.com/cellebyte/go-ddns/internal/dyndns"
@@ -33,25 +32,6 @@ import (
 	"golang.org/x/net/dns/dnsmessage"
 )
 
-func getDiscoveredIPs() {
-	wtfIPClient, err := discovery.NewAddressTxtClient("https://myip.wtf/text")
-	if err != nil {
-		panic(err)
-	}
-	fiIPClient, err := discovery.NewAddressTxtClient("https://my.ip.fi")
-	if err != nil {
-		panic(err)
-	}
-	publicV4, _ := wtfIPClient.IPv4()
-	publicV6, _ := wtfIPClient.IPv6()
-
-	fiPublicV4, _ := fiIPClient.IPv4()
-	fiPublicV6, _ := fiIPClient.IPv6()
-
-	fmt.Println("myip.wtf says:", publicV4, publicV6)
-	fmt.Println("my.ip.fi says:", fiPublicV4, fiPublicV6)
-}
-
 func discoverIP(d discovery.DisoveryProvider, recordType string) (netip.Addr, error) {
 	switch recordType {
 	case config.AType:
@@ -59,7 +39,7 @@ func discoverIP(d discovery.DisoveryProvider, recordType string) (netip.Addr, er
 	case config.AAAAType:
 		return d.IPv6()
 	}
-	return netip.Addr{}, helpers.NotImplemeted
+	return netip.Addr{}, helpers.ErrNotImplemeted
 }
 
 func getDNSValue(d doh.Client, dnsName, recordType string) (netip.Addr, error) {
@@ -70,7 +50,7 @@ func getDNSValue(d doh.Client, dnsName, recordType string) (netip.Addr, error) {
 	case config.AAAAType:
 		messageType = dnsmessage.TypeAAAA
 	default:
-		return netip.Addr{}, helpers.NotImplemeted
+		return netip.Addr{}, helpers.ErrNotImplemeted
 	}
 	val, err := d.Query(dnsName, messageType)
 	if err != nil {
@@ -86,7 +66,7 @@ func getDNSValue(d doh.Client, dnsName, recordType string) (netip.Addr, error) {
 	return addr, nil
 }
 
-func Update(config dynDnsConfig.DynDNS) error {
+func Update(config config.DynDNS) error {
 	dnsName := libdns.AbsoluteName(config.RecordName, config.Zone)
 	dohClient, err := doh.NewClient(config.DOHProvider.String(), config.DOHProvider.Endpoint())
 	if err != nil {
@@ -128,7 +108,7 @@ func Update(config dynDnsConfig.DynDNS) error {
 }
 
 func main() {
-	config, err := dynDnsConfig.ParseConfig()
+	config, err := config.ParseConfig()
 	if err != nil {
 		panic(fmt.Errorf("parsing config: %w", err))
 	}

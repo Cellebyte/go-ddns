@@ -122,6 +122,9 @@ func (d Client) get(dnsMessage string) ([]byte, error) {
 	q.Set("dns", dnsMessage)
 	d.endpoint.RawQuery = q.Encode()
 	req, err := http.NewRequest("GET", d.endpoint.String(), nil)
+	if err != nil {
+		return nil, fmt.Errorf("creating request struct: %w", err)
+	}
 	// Using RFC 8484
 	// ref: https://datatracker.ietf.org/doc/html/rfc8484
 	req.Header.Set("Content-Type", "application/dns-message")
@@ -131,7 +134,12 @@ func (d Client) get(dnsMessage string) ([]byte, error) {
 	if err != nil {
 		return []byte{}, fmt.Errorf("doing request %q: %w", req.URL.String(), err)
 	}
-	defer resp.Body.Close()
+	defer func() {
+		err := resp.Body.Close()
+		if err != nil {
+			panic(fmt.Errorf("closing body: %w", err))
+		}
+	}()
 	buf, err := io.ReadAll(resp.Body)
 	if err != nil {
 		return []byte{}, fmt.Errorf("reading body to buffer: %w", err)
@@ -166,7 +174,13 @@ func (d Client) Query(name string, queryType dnsmessage.Type) ([]string, error) 
 	}
 	b64Message := base64.RawURLEncoding.EncodeToString(binaryMessage)
 	dnsRawMessage, err := d.get(b64Message)
+	if err != nil {
+		return nil, fmt.Errorf("getting response from provider: %w", err)
+	}
 	values, err := d.parse(dnsRawMessage, queryType)
+	if err != nil {
+		return nil, fmt.Errorf("parsing response message: %w", err)
+	}
 
 	return values, nil
 }

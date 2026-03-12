@@ -14,7 +14,7 @@ type FritzBoxClient struct {
 func NewFritzBoxClient(endpoint string) (c FritzBoxClient, err error) {
 	c.provider = FritzBox
 	c.endpoint = endpoint
-	return c, helpers.NotImplemeted
+	return c, helpers.ErrNotImplemeted
 }
 
 func (c FritzBoxClient) Provider() Provider {
@@ -22,10 +22,10 @@ func (c FritzBoxClient) Provider() Provider {
 }
 
 func (c FritzBoxClient) IPv4() (a netip.Addr, err error) {
-	return a, helpers.NotImplemeted
+	return a, helpers.ErrNotImplemeted
 
 }
 
 func (c FritzBoxClient) IPv6() (a netip.Addr, err error) {
-	return a, helpers.NotImplemeted
+	return a, helpers.ErrNotImplemeted
 }

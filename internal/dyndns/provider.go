@@ -47,6 +47,6 @@ func (p Provider) New(token string) (RecordGetterSetter, error) {
 			APIToken: token,
 		}, nil
 	default:
-		return nil, helpers.NotImplemeted
+		return nil, helpers.ErrNotImplemeted
 	}
 }

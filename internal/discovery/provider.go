@@ -40,7 +40,7 @@ func (p Provider) New(val string) (DisoveryProvider, error) {
 		client, err := NewFritzBoxClient(val)
 		return &client, err
 	}
-	return nil, helpers.NotImplemeted
+	return nil, helpers.ErrNotImplemeted
 }
 
 func ParseProvider(provider string) (Provider, error) {
