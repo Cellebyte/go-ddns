@@ -90,8 +90,7 @@ func Update(config config.DynDNS) error {
 			return fmt.Errorf("getting ip for [%s] %s: %w", recordType, dnsName, err)
 		}
 		if newAddr == oldAddr {
-			fmt.Printf("%s: %s already has address (old %q == new %q)\n", recordType, dnsName, oldAddr.String(), newAddr.String())
-			continue
+			fmt.Printf("%s: %s already has address in DNS (old %q == new %q)\n", recordType, dnsName, oldAddr.String(), newAddr.String())
 		}
 		record := libdns.Address{
 			Name: libdns.RelativeName(dnsName, config.Zone),

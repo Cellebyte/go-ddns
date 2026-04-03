@@ -33,17 +33,13 @@ func Update(ctx context.Context, zone string, record libdns.Record, provider Rec
 	if err != nil {
 		return err
 	}
-
+	recordFullName := libdns.AbsoluteName(record.RR().Name, zone)
 	var toUpdate []libdns.Record
 	for _, rec := range existing {
-		fullName := rec.RR().Name + "." + zone
-		if rec.RR().Name == "" {
-			fullName = zone
-		}
-		if fullName != record.RR().Name || rec.RR().Type != record.RR().Type {
+		fullName := libdns.AbsoluteName(rec.RR().Name, zone)
+		if fullName != recordFullName || rec.RR().Type != record.RR().Type {
 			continue
 		}
-
 		if rec.RR().Data == record.RR().Data {
 			return nil
 		}
@@ -53,7 +49,6 @@ func Update(ctx context.Context, zone string, record libdns.Record, provider Rec
 	if len(toUpdate) == 0 {
 		toUpdate = []libdns.Record{record}
 	}
-
 	if _, err := provider.SetRecords(ctx, zone, toUpdate); err != nil {
 		return fmt.Errorf("setting new records: %w", err)
 	}

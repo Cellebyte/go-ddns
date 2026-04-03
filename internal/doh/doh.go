@@ -2,7 +2,6 @@ package doh
 
 import (
 	"encoding/base64"
-	"errors"
 	"fmt"
 	"io"
 	"net"
@@ -107,10 +106,6 @@ func (d Client) parse(dnsRawMessage []byte, queryType dnsmessage.Type) ([]string
 			val := txt.TXT
 			values = append(values, strings.Join(val, " "))
 		}
-	}
-	if len(values) == 0 {
-		return nil, errors.New("not implemented")
-
 	}
 	return values, nil
 }
