@@ -37,6 +37,7 @@ func NewClient(provider, dohEndpoint string) (Client, error) {
 	client.httpClient = &http.Client{
 		Timeout: 5 * time.Second,
 		Transport: &http.Transport{
+			ForceAttemptHTTP2: true,
 			DialContext: (&net.Dialer{
 				Timeout:   3 * time.Second,
 				KeepAlive: 60 * time.Second,
