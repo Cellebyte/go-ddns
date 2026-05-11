@@ -113,9 +113,9 @@ func ParseConfig() (config DynDNS, err error) {
 	// subdomain
 	config.RecordName = os.Getenv(subDomainEnv)
 	if config.RecordName == "" || config.RecordName == "@" {
-		// when empty we assume ddns for the zone RecordName itself
-		// We also allow setting the special case `@` by the user
-		// so setting libdns internal representation `@` here
+		// When empty, we assume DDNS for the zone RecordName itself.
+		// We also allow the user to set the special case `@`.
+		// So we set libdns internal representation `@` here for the zone RecordName.
 		config.RecordName = "@"
 	}
 	if !ValidRFC1035Name(config.RecordName) && config.RecordName != "@" {
