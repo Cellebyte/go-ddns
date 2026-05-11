@@ -113,9 +113,11 @@ func ParseConfig() (config DynDNS, err error) {
 	// subdomain
 	config.RecordName = os.Getenv(subDomainEnv)
 	if config.RecordName == "" {
-		return config, fmt.Errorf("missing %q", subDomainEnv)
+		// when empty we assume ddns for the zone RecordName itself
+		// so setting libdns internal representation `@` here
+		config.RecordName = "@"
 	}
-	if !ValidRFC1035Name(config.RecordName) {
+	if !ValidRFC1035Name(config.RecordName) && config.RecordName != "@" {
 		return config, fmt.Errorf("invalid value %s=%q", subDomainEnv, config.RecordName)
 	}
 	config.RecordName = libdns.RelativeName(config.RecordName, config.Zone)
