@@ -112,8 +112,9 @@ func ParseConfig() (config DynDNS, err error) {
 
 	// subdomain
 	config.RecordName = os.Getenv(subDomainEnv)
-	if config.RecordName == "" {
+	if config.RecordName == "" || config.RecordName == "@" {
 		// when empty we assume ddns for the zone RecordName itself
+		// We also allow setting the special case `@` by the user
 		// so setting libdns internal representation `@` here
 		config.RecordName = "@"
 	}
