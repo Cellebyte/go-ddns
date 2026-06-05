@@ -5,7 +5,8 @@ import (
 
 	"github.com/cellebyte/go-ddns/internal/helpers"
 	"github.com/libdns/cloudflare"
-	pph "github.com/libdns/pph"
+	hetzner "github.com/libdns/hetzner/v2"
+	"github.com/libdns/pph"
 )
 
 type Provider int
@@ -14,6 +15,7 @@ const (
 	unknown Provider = iota
 	CloudFlare
 	PrepaidHoster
+	Hetzner
 )
 
 func (p Provider) String() string {
@@ -21,7 +23,9 @@ func (p Provider) String() string {
 	case CloudFlare:
 		return "cloudflare"
 	case PrepaidHoster:
-		return "prepaidhoster"
+		return "pph"
+	case Hetzner:
+		return "hetzner"
 	}
 	return ""
 }
@@ -44,6 +48,10 @@ func (p Provider) New(token string) (RecordGetterSetter, error) {
 		}, nil
 	case CloudFlare:
 		return &cloudflare.Provider{
+			APIToken: token,
+		}, nil
+	case Hetzner:
+		return &hetzner.Provider{
 			APIToken: token,
 		}, nil
 	default:
