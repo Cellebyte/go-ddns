@@ -1,13 +1,13 @@
 module github.com/cellebyte/go-ddns
 
-go 1.25.5
+go 1.26.4
 
 require (
 	github.com/libdns/cloudflare v0.2.2
 	github.com/libdns/hetzner/v2 v2.0.1
 	github.com/libdns/libdns v1.1.1
 	github.com/libdns/pph v0.0.2
-	golang.org/x/net v0.51.0
+	golang.org/x/net v0.55.0
 )
 
 require (
@@ -21,7 +21,7 @@ require (
 	github.com/prometheus/common v0.66.1 // indirect
 	github.com/prometheus/procfs v0.16.1 // indirect
 	go.yaml.in/yaml/v2 v2.4.2 // indirect
-	golang.org/x/sys v0.41.0 // indirect
-	golang.org/x/text v0.34.0 // indirect
+	golang.org/x/sys v0.45.0 // indirect
+	golang.org/x/text v0.37.0 // indirect
 	google.golang.org/protobuf v1.36.8 // indirect
 )

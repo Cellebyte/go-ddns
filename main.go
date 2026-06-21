@@ -106,7 +106,7 @@ func Update(config config.DynDNS) error {
 	return nil
 }
 
-func main() {
+func updateDns() {
 	config, err := config.ParseConfig()
 	if err != nil {
 		panic(fmt.Errorf("parsing config: %w", err))
@@ -128,4 +128,8 @@ func main() {
 			panic(fmt.Errorf("%s :: running update: %w", t.Format("15:04:05"), err))
 		}
 	}
+}
+
+func main() {
+	updateDns()
 }
