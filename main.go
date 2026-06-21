@@ -39,11 +39,7 @@ func init() {
 	ddnsCmd = flag.NewFlagSet("ddns", flag.ExitOnError)
 }
 
-func main() {
-	if len(os.Args) < 2 {
-		fmt.Println("expected 'certbot' or 'ddns' subcommands")
-		os.Exit(1)
-	}
+func updateDns() {
 	config, err := config.ParseConfig()
 	if err != nil {
 		panic(fmt.Errorf("parsing config: %w", err))
@@ -71,4 +67,8 @@ func main() {
 		fmt.Println("expected 'certbot' or 'ddns' subcommands")
 		os.Exit(1)
 	}
+}
+
+func main() {
+	updateDns()
 }
