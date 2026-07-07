@@ -1,5 +1,5 @@
 # This Dockerfile is used to build the image available on DockerHub
-FROM docker.io/golang:1.25-alpine AS build
+FROM docker.io/golang:1.26-alpine AS build
 
 RUN apk --no-cache add ca-certificates tzdata
 
