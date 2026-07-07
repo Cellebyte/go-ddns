@@ -45,7 +45,7 @@ func (p Provider) String() string {
 	case FFMUC:
 		return "ffmuc.net"
 	}
-	return fmt.Sprintf("Provider(%q)", int(p))
+	return fmt.Sprintf("Provider(%d)", int(p))
 }
 
 func ParseProvider(in string) (Provider, error) {

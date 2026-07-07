@@ -50,7 +50,10 @@ func main() {
 	}
 	switch os.Args[1] {
 	case certbotCmd.Name():
-		certbotCmd.Parse(os.Args[2:])
+		err = certbotCmd.Parse(os.Args[2:])
+		if err != nil {
+			panic(fmt.Errorf("parsing certbot command args: %w", err))
+		}
 		if certbotAuthHook != certbotCleanupHook {
 			if certbotAuthHook {
 				certbot.Auth(config)
