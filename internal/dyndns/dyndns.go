@@ -21,14 +21,15 @@ import (
 	"github.com/libdns/libdns"
 )
 
-type RecordGetterSetter interface {
+type RecordGetterSetterDeleter interface {
 	libdns.RecordGetter
 	libdns.RecordSetter
+	libdns.RecordDeleter
 }
 
 // Update takes a record which should be updated
 // within the specified zone.
-func Update(ctx context.Context, zone string, record libdns.Record, provider RecordGetterSetter) error {
+func Update(ctx context.Context, zone string, record libdns.Record, provider RecordGetterSetterDeleter) error {
 	existing, err := provider.GetRecords(ctx, zone)
 	if err != nil {
 		return err

@@ -17,115 +17,58 @@
 package main
 
 import (
-	"context"
+	"flag"
 	"fmt"
-	"net/netip"
-	"time"
+	"os"
 
+	"github.com/cellebyte/go-ddns/internal/certbot"
 	"github.com/cellebyte/go-ddns/internal/config"
-	"github.com/cellebyte/go-ddns/internal/discovery"
-	"github.com/cellebyte/go-ddns/internal/doh"
-	"github.com/cellebyte/go-ddns/internal/dyndns"
-	"github.com/cellebyte/go-ddns/internal/helpers"
-	"github.com/libdns/libdns"
-
-	"golang.org/x/net/dns/dnsmessage"
+	"github.com/cellebyte/go-ddns/internal/ddns"
 )
 
-func discoverIP(d discovery.DisoveryProvider, recordType string) (netip.Addr, error) {
-	switch recordType {
-	case config.AType:
-		return d.IPv4()
-	case config.AAAAType:
-		return d.IPv6()
-	}
-	return netip.Addr{}, helpers.ErrNotImplemeted
-}
+var certbotCmd *flag.FlagSet
+var certbotAuthHook bool
+var certbotCleanupHook bool
 
-func getDNSValue(d doh.Client, dnsName, recordType string) (netip.Addr, error) {
-	var messageType dnsmessage.Type
-	switch recordType {
-	case config.AType:
-		messageType = dnsmessage.TypeA
-	case config.AAAAType:
-		messageType = dnsmessage.TypeAAAA
-	default:
-		return netip.Addr{}, helpers.ErrNotImplemeted
-	}
-	val, err := d.Query(dnsName, messageType)
-	if err != nil {
-		return netip.Addr{}, fmt.Errorf("querying for %q: %w", dnsName, err)
-	}
-	var addr netip.Addr
-	if len(val) > 0 {
-		addr, err = netip.ParseAddr(val[0])
-		if err != nil {
-			return addr, fmt.Errorf("parsing %s: %w", val[0], err)
-		}
-	}
-	return addr, nil
-}
+var ddnsCmd *flag.FlagSet
 
-func Update(config config.DynDNS) error {
-	dnsName := libdns.AbsoluteName(config.RecordName, config.Zone)
-	dohClient, err := doh.NewClient(config.DOHProvider.String(), config.DOHProvider.Endpoint())
-	if err != nil {
-		return fmt.Errorf("creating doh client for %v+: %w", config.DOHProvider, err)
-	}
-	discoveryClient, err := config.DiscoveryProvider.New(config.DiscoveryProviderEndpoint)
-	if err != nil {
-		return fmt.Errorf("creating discovery client for %v+: %w", config.DiscoveryProvider, err)
-	}
-	dnsProviderClient, err := config.Provider.New(config.APIToken)
-	if err != nil {
-		return fmt.Errorf("creating dns provider client for %v+: %w", config.Provider, err)
-	}
-	for _, recordType := range config.RecordTypes {
-		oldAddr, err := getDNSValue(dohClient, dnsName, recordType)
-		if err != nil {
-			return fmt.Errorf("getting dns content for [%s] %s: %w", recordType, dnsName, err)
-		}
-		newAddr, err := discoverIP(discoveryClient, recordType)
-		if err != nil {
-			return fmt.Errorf("getting ip for [%s] %s: %w", recordType, dnsName, err)
-		}
-		if newAddr == oldAddr {
-			fmt.Printf("%s: %s already has address in DNS (old %q == new %q)\n", recordType, dnsName, oldAddr.String(), newAddr.String())
-		}
-		record := libdns.Address{
-			Name: libdns.RelativeName(dnsName, config.Zone),
-			TTL:  time.Duration(600 * time.Second),
-			IP:   newAddr,
-		}
-		err = dyndns.Update(context.TODO(), config.Zone, record, dnsProviderClient)
-		if err != nil {
-			return fmt.Errorf("updating ip for [%s] %s to %q: %w", recordType, dnsName, newAddr.String(), err)
-		}
-		fmt.Printf("%s: %s now has address %q\n", recordType, dnsName, newAddr.String())
-	}
-	return nil
+func init() {
+	certbotCmd = flag.NewFlagSet("certbot", flag.ExitOnError)
+	certbotCmd.BoolVar(&certbotAuthHook, "auth-hook", false, "provide it to trigger the auth hook. (ref: https://eff-certbot.readthedocs.io/en/stable/using.html#pre-and-post-validation-hooks)")
+	certbotCmd.BoolVar(&certbotCleanupHook, "cleanup-hook", false, "provide it to trigger the cleanup hook. (ref: https://eff-certbot.readthedocs.io/en/stable/using.html#pre-and-post-validation-hooks)")
+	ddnsCmd = flag.NewFlagSet("ddns", flag.ExitOnError)
 }
 
 func main() {
+	if len(os.Args) < 2 {
+		fmt.Println("expected 'certbot' or 'ddns' subcommands")
+		os.Exit(1)
+	}
 	config, err := config.ParseConfig()
 	if err != nil {
 		panic(fmt.Errorf("parsing config: %w", err))
 	}
-	fmt.Println(time.Now().Format("15:04:05"), ":: Found config:", config)
-	ticker := time.NewTicker(config.RecordTTL / 3)
-	defer ticker.Stop()
-	fmt.Println(time.Now().Format("15:04:05"), ":: Update record", libdns.AbsoluteName(config.RecordName, config.Zone), "every", config.RecordTTL/3)
-	err = Update(config)
-	if err != nil {
-		panic(fmt.Errorf("running update: %w", err))
-	}
-	for {
-		t := <-ticker.C
-		// This code runs every third part of config.RecordTTL
-		fmt.Println(t.Format("15:04:05"), ":: Update record", libdns.AbsoluteName(config.RecordName, config.Zone))
-		err = Update(config)
+	switch os.Args[1] {
+	case certbotCmd.Name():
+		err = certbotCmd.Parse(os.Args[2:])
 		if err != nil {
-			panic(fmt.Errorf("%s :: running update: %w", t.Format("15:04:05"), err))
+			panic(fmt.Errorf("parsing certbot command args: %w", err))
 		}
+		if certbotAuthHook != certbotCleanupHook {
+			if certbotAuthHook {
+				certbot.Auth(config)
+			}
+			if certbotCleanupHook {
+				certbot.Cleanup(config)
+			}
+		} else {
+			panic(fmt.Errorf("provide either auth=%v or cleanup=%v", certbotAuthHook, certbotCleanupHook))
+		}
+		fmt.Printf("certbot: hook auth=%v, cleanup=%v\n", certbotAuthHook, certbotCleanupHook)
+	case ddnsCmd.Name():
+		ddns.UpdateDNS(config)
+	default:
+		fmt.Println("expected 'certbot' or 'ddns' subcommands")
+		os.Exit(1)
 	}
 }

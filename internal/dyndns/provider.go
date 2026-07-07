@@ -36,11 +36,13 @@ func ParseProvider(provider string) (Provider, error) {
 		return CloudFlare, nil
 	case PrepaidHoster.String():
 		return PrepaidHoster, nil
+	case Hetzner.String():
+		return Hetzner, nil
 	}
 	return unknown, fmt.Errorf("cannot parse %q", provider)
 }
 
-func (p Provider) New(token string) (RecordGetterSetter, error) {
+func (p Provider) New(token string) (RecordGetterSetterDeleter, error) {
 	switch p {
 	case PrepaidHoster:
 		return &pph.Provider{
