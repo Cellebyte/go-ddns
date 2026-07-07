@@ -19,3 +19,4 @@ ENV TZ=UTC
 WORKDIR /usr/bin
 
 ENTRYPOINT ["go-ddns"]
+CMD ["ddns"]
