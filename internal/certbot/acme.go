@@ -54,10 +54,13 @@ func CertChallenge(dyndns config.DynDNS) error {
 		if errors.Is(err, autocert.ErrCacheMiss) {
 			accountKey, err := rsa.GenerateKey(rand.Reader, 2048)
 			if err != nil {
-				return fmt.Errorf("generating account key: %w", err)
+				return fmt.Errorf("generating account.key: %w", err)
 			}
 			accountKeyBytes = x509.MarshalPKCS1PrivateKey(accountKey)
-			cache.Put(ctx, defaultAccountKeyName, accountKeyBytes)
+			err = cache.Put(ctx, defaultAccountKeyName, accountKeyBytes)
+			if err != nil {
+				return fmt.Errorf("caching account.key for %s: %w", emails, err)
+			}
 		}
 		return fmt.Errorf("reading account key from cache: %w", err)
 	}
@@ -140,7 +143,10 @@ func CertChallenge(dyndns config.DynDNS) error {
 		return fmt.Errorf("generating certificate private key: %w", err)
 	}
 
-	cache.Put(ctx, getFileName(domains[0], "key.pem"), x509.MarshalPKCS1PrivateKey(certKey))
+	err = cache.Put(ctx, getFileName(domains[0], "key.pem"), x509.MarshalPKCS1PrivateKey(certKey))
+	if err != nil {
+		return fmt.Errorf("caching key.pem for %s: %w", domains[0], err)
+	}
 	req := &x509.CertificateRequest{
 		Subject:  pkix.Name{CommonName: domains[0]},
 		DNSNames: domains,
@@ -149,8 +155,10 @@ func CertChallenge(dyndns config.DynDNS) error {
 	if err != nil {
 		return fmt.Errorf("creating CSR: %w", err)
 	}
-	cache.Put(ctx, getFileName(domains[0], "csr.pem"), csr)
-
+	err = cache.Put(ctx, getFileName(domains[0], "csr.pem"), csr)
+	if err != nil {
+		return fmt.Errorf("caching csr.pem for %s: %w", domains[0], err)
+	}
 	// // Wait for the overall order state to change to Ready, then Finalize
 	// order, err = client.WaitOrder(ctx, order.URI)
 	// if err != nil {
@@ -160,11 +168,17 @@ func CertChallenge(dyndns config.DynDNS) error {
 	if err != nil {
 		return fmt.Errorf("creating and ordering cert: %w", err)
 	}
-	cache.Put(ctx, getFileName(domains[0], "url"), []byte(certUrl))
+	err = cache.Put(ctx, getFileName(domains[0], "url"), []byte(certUrl))
+	if err != nil {
+		return fmt.Errorf("caching url for %s: %w", domains[0], err)
+	}
 	derChainToBuf, err := DERChainToSingleBuffer(derChain)
 	if err != nil {
 		return fmt.Errorf("packing chain: %w", err)
 	}
-	cache.Put(ctx, getFileName(domains[0], "crt.pem"), derChainToBuf)
+	err = cache.Put(ctx, getFileName(domains[0], "crt.pem"), derChainToBuf)
+	if err != nil {
+		return fmt.Errorf("caching crt.pem for %s: %w", domains[0], err)
+	}
 	return nil
 }
