@@ -50,9 +50,12 @@ func updateDns() {
 	switch os.Args[1] {
 	case acmeCmd.Name():
 		err := acmeCmd.Parse(os.Args[2:])
-		certbot.ManageCertificate(config)
 		if err != nil {
 			panic(fmt.Errorf("parsing acme command args: %w", err))
+		}
+		err = certbot.ManageCertificate(config)
+		if err != nil {
+			panic(fmt.Errorf("manage certificate: %w", err))
 		}
 	case certbotCmd.Name():
 		err = certbotCmd.Parse(os.Args[2:])
