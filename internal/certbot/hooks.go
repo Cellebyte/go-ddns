@@ -13,16 +13,12 @@ import (
 	"golang.org/x/net/dns/dnsmessage"
 )
 
-func GetChallengeRecordName(config config.DynDNS, params CertBotParameters) string {
-	return libdns.RelativeName(fmt.Sprintf("%s.%s", ACMETXTPrefix, params.Identifier), config.Zone)
+func GetChallengeRecordName(identifier, zone string) string {
+	return libdns.RelativeName(fmt.Sprintf("%s.%s", ACMETXTPrefix, identifier), zone)
 }
 
-func Hook(config config.DynDNS, cleanup bool) error {
+func Hook(config config.DynDNS, identifier, challenge string, cleanup bool) error {
 	ctx := context.Background()
-	params, err := ParseParams()
-	if err != nil {
-		return fmt.Errorf("parsing hook params %v: %w", params, err)
-	}
 	dohClient, err := doh.NewClient(config.DOHProvider.String(), config.DOHProvider.Endpoint())
 	if err != nil {
 		return fmt.Errorf("creating doh client for %v+: %w", config.DOHProvider, err)
@@ -36,7 +32,7 @@ func Hook(config config.DynDNS, cleanup bool) error {
 		if err != nil {
 			return fmt.Errorf("getting Records: %w", err)
 		}
-		name := GetChallengeRecordName(config, params)
+		name := GetChallengeRecordName(identifier, config.Zone)
 		var toDelete []libdns.Record
 		for _, record := range records {
 			if record.RR().Name == name {
@@ -51,9 +47,9 @@ func Hook(config config.DynDNS, cleanup bool) error {
 	}
 	// ACME DNS-01 challenge
 	txtRecord := libdns.TXT{
-		Name: GetChallengeRecordName(config, params),
+		Name: GetChallengeRecordName(identifier, config.Zone),
 		TTL:  time.Duration(600 * time.Second),
-		Text: params.Validation,
+		Text: challenge,
 	}
 	updated, err := dnsProviderClient.SetRecords(ctx, config.Zone, []libdns.Record{txtRecord})
 	if err != nil {
@@ -86,14 +82,22 @@ func Hook(config config.DynDNS, cleanup bool) error {
 	return nil
 }
 
-func Auth(config config.DynDNS) {
-	err := Hook(config, false)
+func Auth(config config.DynDNS, params CertBotParameters) {
+	auth(config, params.Identifier, params.Validation)
+}
+
+func Cleanup(config config.DynDNS, params CertBotParameters) {
+	cleanup(config, params.Identifier, params.Validation)
+}
+
+func auth(config config.DynDNS, identifier, challenge string) {
+	err := Hook(config, identifier, challenge, false)
 	if err != nil {
 		panic(fmt.Errorf("calling auth hook: %w", err))
 	}
 }
-func Cleanup(config config.DynDNS) {
-	err := Hook(config, true)
+func cleanup(config config.DynDNS, identifier, challenge string) {
+	err := Hook(config, identifier, challenge, true)
 	if err != nil {
 		panic(fmt.Errorf("calling cleanup hook: %w", err))
 	}
