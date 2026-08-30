@@ -81,3 +81,7 @@ func updateDns() {
 		os.Exit(1)
 	}
 }
+
+func main() {
+	updateDns()
+}
