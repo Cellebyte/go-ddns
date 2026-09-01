@@ -7,6 +7,8 @@ import (
 	"strconv"
 	"strings"
 	"time"
+
+	"golang.org/x/crypto/acme/autocert"
 )
 
 const (
@@ -56,7 +58,9 @@ func ParseACMEConfig() (config ACMEConfig, err error) {
 		return config, fmt.Errorf("%s is required", acmeMailAddresses)
 	}
 	// TODO: swap this for production
-	config.ACMEURL = ACMEStagingURL
+	config.ACMEURL = autocert.DefaultACMEDirectory
+	// staging environment
+	//config.ACMEURL = ACMEStagingURL
 
 	// Timeout
 	config.Timeout = 1 * time.Minute
