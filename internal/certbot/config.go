@@ -52,7 +52,7 @@ func ParseACMEConfig() (config ACMEConfig, err error) {
 	cacheDir := os.Getenv(acmeCacheDir)
 	if cacheDir == "" {
 		// default to userCacheDir
-		cacheDir, err := os.UserCacheDir()
+		cacheDir, err = os.UserCacheDir()
 		if err != nil {
 			return config, fmt.Errorf("getting default usercachedir: %w", err)
 		}
