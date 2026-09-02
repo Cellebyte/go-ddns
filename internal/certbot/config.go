@@ -19,15 +19,17 @@ const (
 	certBotRemainingChallenges = "CERTBOT_REMAINING_CHALLENGES" // Number of challenges remaining after the current challenge
 	certBotAllIdentifiers      = "CERTBOT_ALL_IDENTIFIERS"      // A comma-separated list of all identifiers challenged for the current certificate
 
+	// ACME configuration variables
 	acmeMailAddresses    = "ACME_MAIL_ADDRESSES"    // A comms-separated list of all mail addresses used on the account
 	acmeChallengeTimeout = "ACME_CHALLENGE_TIMEOUT" // Parsed by the time library :default: 1m
 	acmeRenewBefore      = "ACME_RENEW_BEFORE"
-	// ACME configuration
+	acmeCacheDir         = "ACME_CACHE_DIR"
+
+	// ACME configuration defaults
 	ACMETXTPrefix         = "_acme-challenge"
 	defaultAccountKeyName = "account.key"
-	defaultACMECacheDir   = ".cache/go-ddns"
+	defaultACMECacheDir   = "go-ddns"
 
-	//ACMEDomain      = "acme.cellebyte.de"
 	ACMEStagingURL = "https://acme-staging-v02.api.letsencrypt.org/directory"
 )
 
@@ -47,17 +49,21 @@ type ACMEConfig struct {
 }
 
 func ParseACMEConfig() (config ACMEConfig, err error) {
-	homedir, err := os.UserHomeDir()
-	if err != nil {
-		return config, fmt.Errorf("getting default homedir: %w", err)
+	cacheDir := os.Getenv(acmeCacheDir)
+	if cacheDir == "" {
+		// default to userCacheDir
+		cacheDir, err := os.UserCacheDir()
+		if err != nil {
+			return config, fmt.Errorf("getting default usercachedir: %w", err)
+		}
+		cacheDir = path.Join(cacheDir, defaultACMECacheDir)
 	}
-	config.CacheDir = path.Join(homedir, defaultACMECacheDir)
+	config.CacheDir = path.Join(cacheDir)
 
 	mailAddresses := strings.Split(os.Getenv(acmeMailAddresses), ",")
 	if len(mailAddresses) == 0 {
 		return config, fmt.Errorf("%s is required", acmeMailAddresses)
 	}
-	// TODO: swap this for production
 	config.ACMEURL = autocert.DefaultACMEDirectory
 	// staging environment
 	//config.ACMEURL = ACMEStagingURL
