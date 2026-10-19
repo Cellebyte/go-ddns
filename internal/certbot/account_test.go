@@ -34,7 +34,13 @@ func TestEnsureAccount(t *testing.T) {
 				case "/directory":
 					w.Header().Set("Content-Type", "application/json")
 					w.Header().Set("Replay-Nonce", "nonce")
-					json.NewEncoder(w).Encode(map[string]string{"newAccount": server.URL + "/account", "newOrder": server.URL + "/order"})
+					if err := json.NewEncoder(w).Encode(map[string]string{
+						"newAccount": server.URL + "/account",
+						"newOrder":   server.URL + "/order",
+					}); err != nil {
+						t.Fatalf("encode directory: %v", err)
+					}
+
 				case "/account":
 					var jws struct {
 						Payload string `json:"payload"`
@@ -58,7 +64,9 @@ func TestEnsureAccount(t *testing.T) {
 						lookups.Add(1)
 						if !tc.lookupExists && lookups.Load() == 1 {
 							w.WriteHeader(http.StatusBadRequest)
-							w.Write([]byte(`{"type":"urn:ietf:params:acme:error:accountDoesNotExist"}`))
+							if _, err := w.Write([]byte(`{"type":"urn:ietf:params:acme:error:accountDoesNotExist"}`)); err != nil {
+								t.Fatalf("write account error: %v", err)
+							}
 							return
 						}
 					} else {
@@ -70,7 +78,9 @@ func TestEnsureAccount(t *testing.T) {
 					} else {
 						w.WriteHeader(http.StatusCreated)
 					}
-					w.Write([]byte(`{"status":"valid"}`))
+					if _, err := w.Write([]byte(`{"status":"valid"}`)); err != nil {
+						t.Fatalf("write account response: %v", err)
+					}
 				default:
 					t.Errorf("unexpected ACME request: %s", r.URL)
 				}
