@@ -49,25 +49,9 @@ func CertChallenge(dyndns config.DynDNS) error {
 
 	emails := AddPrefixToSlice("mailto:", config.MailAddresses)
 	cache := autocert.DirCache(config.CacheDir)
-	accountKeyBytes, err := cache.Get(ctx, defaultAccountKeyName)
+	accountKey, err := loadAccountKey(ctx, cache)
 	if err != nil {
-		if errors.Is(err, autocert.ErrCacheMiss) {
-			accountKey, err := rsa.GenerateKey(rand.Reader, 2048)
-			if err != nil {
-				return fmt.Errorf("generating account.key: %w", err)
-			}
-			accountKeyBytes = x509.MarshalPKCS1PrivateKey(accountKey)
-			err = cache.Put(ctx, defaultAccountKeyName, accountKeyBytes)
-			if err != nil {
-				return fmt.Errorf("caching account.key for %s: %w", emails, err)
-			}
-		}
-		return fmt.Errorf("reading account key from cache: %w", err)
-	}
-
-	accountKey, err := x509.ParsePKCS1PrivateKey(accountKeyBytes)
-	if err != nil {
-		return fmt.Errorf("parse account key: %w", err)
+		return err
 	}
 	// 2. Initialize the ACME Client
 	client := &acme.Client{
@@ -75,12 +59,12 @@ func CertChallenge(dyndns config.DynDNS) error {
 		Key:          accountKey,
 	}
 
-	// 3. Register the Account
-	account, err := client.Register(ctx, &acme.Account{Contact: emails}, acme.AcceptTOS)
+	// 3. Reuse the account associated with the cached key, or register a new one.
+	account, err := ensureAccount(ctx, client, emails)
 	if err != nil {
-		return fmt.Errorf("registering account: %v", err)
+		return err
 	}
-	log.Printf("Successfull registered Account URI: %s", account.URI)
+	log.Printf("ACME account URI: %s", account.URI)
 
 	// 4. Create a New Certificate Order
 	domains := AbsoluteDNSNames(dyndns.Zone, []string{dyndns.RecordName})
@@ -120,7 +104,9 @@ func CertChallenge(dyndns config.DynDNS) error {
 		if err != nil {
 			return fmt.Errorf("generating TXT value: %w", err)
 		}
-		auth(dyndns, authz.Identifier.Value, txtValue)
+		if err := Hook(dyndns, authz.Identifier.Value, txtValue, false); err != nil {
+			return fmt.Errorf("publishing challenge: %w", err)
+		}
 
 		// 7. Tell the ACME server to verify the challenge
 		if _, err := client.Accept(ctx, dnsChal); err != nil {
@@ -143,7 +129,7 @@ func CertChallenge(dyndns config.DynDNS) error {
 		return fmt.Errorf("generating certificate private key: %w", err)
 	}
 
-	err = cache.Put(ctx, getFileName(domains[0], "key.pem"), x509.MarshalPKCS1PrivateKey(certKey))
+	err = cache.Put(ctx, getFileName(domains[0], "key.pem"), CertificateKeyPEM(certKey))
 	if err != nil {
 		return fmt.Errorf("caching key.pem for %s: %w", domains[0], err)
 	}
@@ -155,7 +141,7 @@ func CertChallenge(dyndns config.DynDNS) error {
 	if err != nil {
 		return fmt.Errorf("creating CSR: %w", err)
 	}
-	err = cache.Put(ctx, getFileName(domains[0], "csr.pem"), csr)
+	err = cache.Put(ctx, getFileName(domains[0], "csr.pem"), CertificateRequestPEM(csr))
 	if err != nil {
 		return fmt.Errorf("caching csr.pem for %s: %w", domains[0], err)
 	}
@@ -181,4 +167,50 @@ func CertChallenge(dyndns config.DynDNS) error {
 		return fmt.Errorf("caching crt.pem for %s: %w", domains[0], err)
 	}
 	return nil
+}
+
+func ensureAccount(ctx context.Context, client *acme.Client, emails []string) (*acme.Account, error) {
+	account, err := client.GetReg(ctx, "")
+	if err == nil {
+		return account, nil
+	}
+	if !errors.Is(err, acme.ErrNoAccount) {
+		return nil, fmt.Errorf("looking up account: %w", err)
+	}
+
+	account, err = client.Register(ctx, &acme.Account{Contact: emails}, acme.AcceptTOS)
+	if errors.Is(err, acme.ErrAccountAlreadyExists) {
+		// Another process may have registered this key after our lookup.
+		account, err = client.GetReg(ctx, "")
+		if err != nil {
+			return nil, fmt.Errorf("looking up existing account: %w", err)
+		}
+		return account, nil
+	}
+	if err != nil {
+		return nil, fmt.Errorf("registering account: %w", err)
+	}
+	return account, nil
+}
+
+func loadAccountKey(ctx context.Context, cache autocert.Cache) (*rsa.PrivateKey, error) {
+	accountKeyBytes, err := cache.Get(ctx, defaultAccountKeyName)
+	if err != nil {
+		if !errors.Is(err, autocert.ErrCacheMiss) {
+			return nil, fmt.Errorf("reading account key from cache: %w", err)
+		}
+		accountKey, err := rsa.GenerateKey(rand.Reader, 2048)
+		if err != nil {
+			return nil, fmt.Errorf("generating account.key: %w", err)
+		}
+		accountKeyBytes = x509.MarshalPKCS1PrivateKey(accountKey)
+		if err := cache.Put(ctx, defaultAccountKeyName, accountKeyBytes); err != nil {
+			return nil, fmt.Errorf("caching account.key: %w", err)
+		}
+	}
+	accountKey, err := x509.ParsePKCS1PrivateKey(accountKeyBytes)
+	if err != nil {
+		return nil, fmt.Errorf("parse account key: %w", err)
+	}
+	return accountKey, nil
 }
