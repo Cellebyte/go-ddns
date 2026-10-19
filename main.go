@@ -26,6 +26,8 @@ import (
 	"github.com/cellebyte/go-ddns/internal/ddns"
 )
 
+var acmeCmd *flag.FlagSet
+
 var certbotCmd *flag.FlagSet
 var certbotAuthHook bool
 var certbotCleanupHook bool
@@ -37,29 +39,39 @@ func init() {
 	certbotCmd.BoolVar(&certbotAuthHook, "auth-hook", false, "provide it to trigger the auth hook. (ref: https://eff-certbot.readthedocs.io/en/stable/using.html#pre-and-post-validation-hooks)")
 	certbotCmd.BoolVar(&certbotCleanupHook, "cleanup-hook", false, "provide it to trigger the cleanup hook. (ref: https://eff-certbot.readthedocs.io/en/stable/using.html#pre-and-post-validation-hooks)")
 	ddnsCmd = flag.NewFlagSet("ddns", flag.ExitOnError)
+	acmeCmd = flag.NewFlagSet("acme", flag.ExitOnError)
 }
 
-func main() {
-	if len(os.Args) < 2 {
-		fmt.Println("expected 'certbot' or 'ddns' subcommands")
-		os.Exit(1)
-	}
+func updateDns() {
 	config, err := config.ParseConfig()
 	if err != nil {
 		panic(fmt.Errorf("parsing config: %w", err))
 	}
 	switch os.Args[1] {
+	case acmeCmd.Name():
+		err := acmeCmd.Parse(os.Args[2:])
+		if err != nil {
+			panic(fmt.Errorf("parsing acme command args: %w", err))
+		}
+		err = certbot.ManageCertificate(config)
+		if err != nil {
+			panic(fmt.Errorf("manage certificate: %w", err))
+		}
 	case certbotCmd.Name():
 		err = certbotCmd.Parse(os.Args[2:])
 		if err != nil {
 			panic(fmt.Errorf("parsing certbot command args: %w", err))
 		}
+		hook_values, err := certbot.ParseParams()
+		if err != nil {
+			panic(fmt.Errorf("parsing certbot manual hook env: %w", err))
+		}
 		if certbotAuthHook != certbotCleanupHook {
 			if certbotAuthHook {
-				certbot.Auth(config)
+				certbot.Auth(config, hook_values)
 			}
 			if certbotCleanupHook {
-				certbot.Cleanup(config)
+				certbot.Cleanup(config, hook_values)
 			}
 		} else {
 			panic(fmt.Errorf("provide either auth=%v or cleanup=%v", certbotAuthHook, certbotCleanupHook))
@@ -68,7 +80,11 @@ func main() {
 	case ddnsCmd.Name():
 		ddns.UpdateDNS(config)
 	default:
-		fmt.Println("expected 'certbot' or 'ddns' subcommands")
+		fmt.Println("expected 'certbot' or 'ddns' or 'acme' subcommands")
 		os.Exit(1)
 	}
+}
+
+func main() {
+	updateDns()
 }

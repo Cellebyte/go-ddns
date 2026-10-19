@@ -3,6 +3,7 @@ package certbot
 import (
 	"context"
 	"fmt"
+	"log"
 	"strings"
 	"time"
 
@@ -13,15 +14,19 @@ import (
 	"golang.org/x/net/dns/dnsmessage"
 )
 
-func GetChallengeRecordName(config config.DynDNS, params CertBotParameters) string {
-	return libdns.RelativeName(fmt.Sprintf("%s.%s", ACMETXTPrefix, params.Identifier), config.Zone)
+func GetChallengeRecordName(identifier, zone string) string {
+	return libdns.RelativeName(fmt.Sprintf("%s.%s", ACMETXTPrefix, identifier), zone)
 }
 
-func Hook(config config.DynDNS, cleanup bool) error {
+func Hook(config config.DynDNS, identifier, challenge string, cleanup bool) error {
 	ctx := context.Background()
-	params, err := ParseParams()
-	if err != nil {
-		return fmt.Errorf("parsing hook params %v: %w", params, err)
+	var propagationTimeout time.Duration
+	if !cleanup {
+		cfg, err := ParseACMEConfig()
+		if err != nil {
+			return fmt.Errorf("building ACME config: %w", err)
+		}
+		propagationTimeout = cfg.TXTPropagationTimeout
 	}
 	dohClient, err := doh.NewClient(config.DOHProvider.String(), config.DOHProvider.Endpoint())
 	if err != nil {
@@ -36,7 +41,7 @@ func Hook(config config.DynDNS, cleanup bool) error {
 		if err != nil {
 			return fmt.Errorf("getting Records: %w", err)
 		}
-		name := GetChallengeRecordName(config, params)
+		name := GetChallengeRecordName(identifier, config.Zone)
 		var toDelete []libdns.Record
 		for _, record := range records {
 			if record.RR().Name == name {
@@ -51,9 +56,9 @@ func Hook(config config.DynDNS, cleanup bool) error {
 	}
 	// ACME DNS-01 challenge
 	txtRecord := libdns.TXT{
-		Name: GetChallengeRecordName(config, params),
+		Name: GetChallengeRecordName(identifier, config.Zone),
 		TTL:  time.Duration(600 * time.Second),
-		Text: params.Validation,
+		Text: challenge,
 	}
 	updated, err := dnsProviderClient.SetRecords(ctx, config.Zone, []libdns.Record{txtRecord})
 	if err != nil {
@@ -62,38 +67,64 @@ func Hook(config config.DynDNS, cleanup bool) error {
 	// Check DNS for existence
 	fullName := libdns.AbsoluteName(txtRecord.Name, config.Zone)
 
-	if err := retry.Do(ctx, retry.WithMaxRetries(
-		4, retry.WithJitter(
-			1*time.Second, retry.NewFibonacci(
-				2*time.Second),
-		),
-	), func(ctx context.Context) error {
-		responses, err := dohClient.Query(fullName, dnsmessage.TypeTXT)
+	return waitForTXT(ctx, propagationTimeout, dohClient, fullName, txtRecord.Text)
+}
+
+type txtResolver interface {
+	Query(string, dnsmessage.Type) ([]string, error)
+}
+
+// waitForTXT polls independently of the ACME order timeout, as DNS propagation
+// can take longer than ACME's network operations. The deadline includes queries.
+func waitForTXT(ctx context.Context, timeout time.Duration, client txtResolver, name, token string) error {
+	return waitForTXTWithInterval(ctx, timeout, 2*time.Second, client, name, token)
+}
+
+func waitForTXTWithInterval(ctx context.Context, timeout, interval time.Duration, client txtResolver, name, token string) error {
+	ctx, cancel := context.WithTimeout(ctx, timeout)
+	defer cancel()
+	var lastErr error
+	attempt := 0
+	err := retry.Do(ctx, retry.NewConstant(interval), func(ctx context.Context) error {
+		attempt++
+		responses, err := client.Query(name, dnsmessage.TypeTXT)
 		if err != nil {
-			return fmt.Errorf("resolving Challenge for %s: %w", fullName, err)
+			lastErr = fmt.Errorf("resolving challenge for %s: %w", name, err)
+			log.Printf("TXT propagation check %d for %s: resolver error (retrying)", attempt, name)
+			return retry.RetryableError(lastErr)
 		}
 		for _, response := range responses {
-			if txtRecord.Text == strings.Trim(response, " ") {
+			if token == strings.TrimSpace(response) {
+				log.Printf("TXT propagation check %d for %s: expected record found", attempt, name)
 				return nil
 			}
 		}
-		err = fmt.Errorf("finding token for %s {%s != %v} on endpoint %s", fullName, txtRecord.Text, responses, config.DOHProvider.Endpoint())
-		fmt.Println(ctx, err)
-		return retry.RetryableError(err)
-	}); err != nil {
-		return fmt.Errorf("retry for existence: %w", err)
+		lastErr = fmt.Errorf("finding token for %s: expected value not present (%d TXT answers)", name, len(responses))
+		log.Printf("TXT propagation check %d for %s: expected record not visible (%d TXT answers; retrying)", attempt, name, len(responses))
+		return retry.RetryableError(lastErr)
+	})
+	if err != nil {
+		return fmt.Errorf("retry for existence (last result: %v): %w", lastErr, err)
 	}
 	return nil
 }
 
-func Auth(config config.DynDNS) {
-	err := Hook(config, false)
+func Auth(config config.DynDNS, params CertBotParameters) {
+	auth(config, params.Identifier, params.Validation)
+}
+
+func Cleanup(config config.DynDNS, params CertBotParameters) {
+	cleanup(config, params.Identifier, params.Validation)
+}
+
+func auth(config config.DynDNS, identifier, challenge string) {
+	err := Hook(config, identifier, challenge, false)
 	if err != nil {
 		panic(fmt.Errorf("calling auth hook: %w", err))
 	}
 }
-func Cleanup(config config.DynDNS) {
-	err := Hook(config, true)
+func cleanup(config config.DynDNS, identifier, challenge string) {
+	err := Hook(config, identifier, challenge, true)
 	if err != nil {
 		panic(fmt.Errorf("calling cleanup hook: %w", err))
 	}
